@@ -2,3 +2,7 @@ venv/
 .venv/
 *.pyc
 __pycache__/
+*.egg-info/
+.env
+.DS_Store
+*.pdf
