@@ -1,19 +1,10 @@
-"""
-resume_parser.py
-Extracts raw text from uploaded PDF resumes using pdfplumber.
-Falls back to PyMuPDF if pdfplumber fails on a page.
-"""
 import io
 
 def extract_text_from_pdf(file_obj) -> str:
-    """
-    Accept a Streamlit UploadedFile or any file-like object.
-    Returns extracted plain text string.
-    """
     text = ""
     raw_bytes = file_obj.read() if hasattr(file_obj, "read") else file_obj
 
-    # ── Primary: pdfplumber ──────────────────────────────────────────────────
+    # Primary: pdfplumber
     try:
         import pdfplumber
         with pdfplumber.open(io.BytesIO(raw_bytes)) as pdf:
@@ -24,17 +15,25 @@ def extract_text_from_pdf(file_obj) -> str:
         if text.strip():
             return text
     except Exception as e:
-        print(f"[pdfplumber] failed: {e}")
+        print(f"pdfplumber failed: {e}")
 
-    # ── Fallback: PyMuPDF (fitz) ─────────────────────────────────────────────
+    # Fallback: PyMuPDF
     try:
-        import fitz  # PyMuPDF
+        import fitz
         doc = fitz.open(stream=raw_bytes, filetype="pdf")
         for page in doc:
-            text += page.get_text() + "\n"
+            text += page.get_text("text") + "\n"
         doc.close()
+        if text.strip():
+            return text
+    except Exception as e:
+        print(f"PyMuPDF failed: {e}")
+
+    # Last resort: decode with error ignoring
+    try:
+        text = raw_bytes.decode("utf-8", errors="ignore")
         return text
     except Exception as e:
-        print(f"[PyMuPDF] failed: {e}")
+        print(f"Decode failed: {e}")
 
-    return text
+    return ""
