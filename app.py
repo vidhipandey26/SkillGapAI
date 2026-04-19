@@ -1,9 +1,12 @@
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 import streamlit as st
 import plotly.graph_objects as go
 import plotly.express as px
-from src.resume_parser import extract_text_from_pdf
-from src.skill_extractor import extract_skills
-from src.matcher import match_skills, compute_match_percentage, get_missing_skills
+from resume_parser import extract_text_from_pdf
+from skill_extractor import extract_skills
+from matcher import match_skills, compute_match_percentage, get_missing_skills
 import pandas as pd
 
 # ─── Page Config ────────────────────────────────────────────────────────────
