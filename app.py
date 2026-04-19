@@ -1,13 +1,11 @@
 import streamlit as st
-from src.resume_parser import extract_text_from_pdf
-from src.skill_extractor import extract_skills
-from src.matcher import match_skills, compute_match_percentage, get_missing_skills
 import plotly.graph_objects as go
 import pandas as pd
+import io
 
 st.set_page_config(page_title="SkillGapAI", page_icon="Ì∑†", layout="wide")
 st.title("Ì∑† SkillGapAI")
-st.markdown("**Semantic Resume √ó Job Description Matcher**")
+st.markdown("**Semantic Resume x Job Description Matcher**")
 st.markdown("---")
 
 col1, col2 = st.columns(2)
@@ -23,35 +21,78 @@ if st.button("Ì¥ç Analyze Skill Gap"):
         st.warning("Please upload a resume AND paste a job description.")
     else:
         with st.spinner("Analyzing..."):
-            resume_text = extract_text_from_pdf(resume_file)
-            resume_skills = extract_skills(resume_text)
-            jd_skills = extract_skills(jd_text)
-            matched_skills, similarity_scores = match_skills(resume_skills, jd_skills)
-            match_pct = compute_match_percentage(matched_skills, jd_skills)
-            missing_skills = get_missing_skills(jd_skills, matched_skills)
+            try:
+                raw_bytes = resume_file.read()
 
-        st.markdown("---")
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Match Score", f"{match_pct:.0f}%")
-        c2.metric("Resume Skills", len(resume_skills))
-        c3.metric("Matched", len(matched_skills))
-        c4.metric("Missing", len(missing_skills))
+                # Extract text safely
+                resume_text = ""
+                try:
+                    import pdfplumber
+                    with pdfplumber.open(io.BytesIO(raw_bytes)) as pdf:
+                        for page in pdf.pages:
+                            t = page.extract_text()
+                            if t:
+                                resume_text += t + "\n"
+                except Exception:
+                    pass
 
-        fig = go.Figure(go.Bar(
-            x=["Matched", "Missing", "JD Skills", "Resume Skills"],
-            y=[len(matched_skills), len(missing_skills), len(jd_skills), len(resume_skills)],
-            marker_color=["#00f5d4", "#ff61ab", "#7b61ff", "#ffc800"]
-        ))
-        fig.update_layout(title="Skill Gap Analysis", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
-        st.plotly_chart(fig, use_container_width=True)
+                if not resume_text.strip():
+                    try:
+                        import fitz
+                        doc = fitz.open(stream=raw_bytes, filetype="pdf")
+                        for page in doc:
+                            resume_text += page.get_text() + "\n"
+                        doc.close()
+                    except Exception:
+                        pass
 
-        st.subheader("‚úÖ Matched Skills")
-        st.write(", ".join(matched_skills) if matched_skills else "None found")
+                # Clean text
+                resume_text = resume_text.encode("utf-8", errors="ignore").decode("utf-8", errors="ignore")
+                jd_clean = jd_text.encode("utf-8", errors="ignore").decode("utf-8", errors="ignore")
 
-        st.subheader("‚ùå Missing Skills")
-        st.write(", ".join(missing_skills) if missing_skills else "Ìæâ You match all skills!")
+                from src.skill_extractor import extract_skills
+                from src.matcher import match_skills, compute_match_percentage, get_missing_skills
 
-        if similarity_scores:
-            st.subheader("Ì¥¨ Similarity Details")
-            df = pd.DataFrame(similarity_scores, columns=["Resume Skill", "JD Skill", "Score"])
-            st.dataframe(df, use_container_width=True)
+                resume_skills = extract_skills(resume_text)
+                jd_skills = extract_skills(jd_clean)
+
+                if not resume_skills:
+                    st.error("No skills found in resume. Try a different PDF.")
+                    st.stop()
+                if not jd_skills:
+                    st.error("No skills found in job description.")
+                    st.stop()
+
+                matched_skills, similarity_scores = match_skills(resume_skills, jd_skills)
+                match_pct = compute_match_percentage(matched_skills, jd_skills)
+                missing_skills = get_missing_skills(jd_skills, matched_skills)
+
+                st.markdown("---")
+                c1, c2, c3, c4 = st.columns(4)
+                c1.metric("Match Score", f"{match_pct:.0f}%")
+                c2.metric("Resume Skills", len(resume_skills))
+                c3.metric("Matched", len(matched_skills))
+                c4.metric("Missing", len(missing_skills))
+
+                fig = go.Figure(go.Bar(
+                    x=["Matched", "Missing", "JD Skills", "Resume Skills"],
+                    y=[len(matched_skills), len(missing_skills), len(jd_skills), len(resume_skills)],
+                    marker_color=["#00f5d4", "#ff61ab", "#7b61ff", "#ffc800"]
+                ))
+                fig.update_layout(title="Skill Gap Analysis", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
+                st.plotly_chart(fig, use_container_width=True)
+
+                st.subheader("‚úÖ Matched Skills")
+                st.write(", ".join(matched_skills) if matched_skills else "None found")
+
+                st.subheader("‚ùå Missing Skills")
+                st.write(", ".join(missing_skills) if missing_skills else "You match all skills!")
+
+                if similarity_scores:
+                    st.subheader("Ì¥¨ Similarity Details")
+                    df = pd.DataFrame(similarity_scores, columns=["Resume Skill", "JD Skill", "Score"])
+                    st.dataframe(df, use_container_width=True)
+
+            except Exception as e:
+                st.error(f"Error: {str(e)}")
+                st.info("Try re-exporting your PDF from Word or Google Docs and upload again.")
