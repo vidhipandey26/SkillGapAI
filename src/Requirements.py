@@ -1,0 +1,11 @@
+requirements = [
+    "streamlit>=1.32.0",
+    "pdfplumber>=0.10.3",
+    "PyMuPDF>=1.23.0",
+    "sentence-transformers>=2.6.0",
+    "plotly>=5.19.0",
+    "pandas>=2.1.0",
+    "numpy>=1.26.0",
+    "torch>=2.2.0",
+    "transformers>=4.38.0"
+]
