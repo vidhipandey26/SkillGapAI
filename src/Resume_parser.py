@@ -1,39 +1,25 @@
 import io
 
-def extract_text_from_pdf(file_obj) -> str:
+def extract_text_from_pdf(file_obj):
     text = ""
-    raw_bytes = file_obj.read() if hasattr(file_obj, "read") else file_obj
-
-    # Primary: pdfplumber
+    raw = file_obj.read() if hasattr(file_obj, "read") else file_obj
     try:
         import pdfplumber
-        with pdfplumber.open(io.BytesIO(raw_bytes)) as pdf:
+        with pdfplumber.open(io.BytesIO(raw)) as pdf:
             for page in pdf.pages:
-                page_text = page.extract_text()
-                if page_text:
-                    text += page_text + "\n"
+                t = page.extract_text()
+                if t:
+                    text += t + "\n"
         if text.strip():
             return text
     except Exception as e:
-        print(f"pdfplumber failed: {e}")
-
-    # Fallback: PyMuPDF
+        print(f"pdfplumber error: {e}")
     try:
         import fitz
-        doc = fitz.open(stream=raw_bytes, filetype="pdf")
+        doc = fitz.open(stream=raw, filetype="pdf")
         for page in doc:
-            text += page.get_text("text") + "\n"
+            text += page.get_text() + "\n"
         doc.close()
-        if text.strip():
-            return text
     except Exception as e:
-        print(f"PyMuPDF failed: {e}")
-
-    # Last resort: decode with error ignoring
-    try:
-        text = raw_bytes.decode("utf-8", errors="ignore")
-        return text
-    except Exception as e:
-        print(f"Decode failed: {e}")
-
-    return ""
+        print(f"fitz error: {e}")
+    return text
